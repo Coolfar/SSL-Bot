@@ -198,10 +198,5 @@ A: 在运行脚本时，按照提示输入自定义路径（如 `/etc/nginx/ssl/
 
 欢迎提交 Issue 或 Pull Request，帮助改进本项目！如果你有任何建议或发现 Bug，请随时联系我。
 
----
 
-## **作者**
 
-- **作者**: coolfar
-- **邮箱**: zyp@kuyuan.net
-- **GitHub**: [https://github.com/Coolfar/SSL-Bot](https://github.com/Coolfar/SSL-Bot)
