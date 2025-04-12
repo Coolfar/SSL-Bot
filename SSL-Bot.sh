@@ -18,7 +18,18 @@ trap cleanup INT TERM
 detect_os() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        OS=$ID
+        case $ID in
+            ubuntu|debian)
+                OS=$ID
+                ;;
+            centos|rhel|alinux)
+                OS="centos"  # 将 alinux 视为 CentOS 处理
+                ;;
+            *)
+                echo "❌ 不支持的操作系统：$ID"
+                exit 1
+                ;;
+        esac
     elif type lsb_release >/dev/null 2>&1; then
         OS=$(lsb_release -si | tr 'A-Z' 'a-z')
     else
