@@ -17,6 +17,7 @@ SSL-Bot 是一个自动化工具，用于通过 DNS 验证方式申请和续期 
 
 - **自动续期**：
   - 自动配置 Cron 定时任务，定期检查并续期证书。
+  - 动态生成续期脚本 `/root/renew_cert.sh`，方便手动测试续期。
 
 - **系统环境检测**：
   - 自动检测操作系统类型并安装所需依赖。
@@ -74,13 +75,31 @@ chmod +x SSL-Bot.sh
 
 ---
 
-## **日志管理**
+## **自动续期**
 
-- 续期日志存储在 `/root/acme_renew.log` 中。
-- 查看日志：
-  ```bash
-  tail -f /root/acme_renew.log
-  ```
+脚本会自动生成一个续期脚本 `/root/renew_cert.sh`，用于手动触发证书续期，并配置每天凌晨 3 点的定时任务。
+
+### **手动测试续期**
+执行以下命令手动触发续期：
+```bash
+/root/renew_cert.sh
+```
+
+### **查看续期日志**
+续期日志存储在 `/root/acme_renew.log` 中。使用以下命令查看日志：
+```bash
+tail -f /root/acme_renew.log
+```
+
+### **定时任务**
+脚本会自动配置每天凌晨 3 点的定时任务，检查并续期证书。你可以通过以下命令查看 Cron 定时任务：
+```bash
+crontab -l
+```
+输出应包含类似以下内容：
+```
+0 3 * * * /root/renew_cert.sh >> /root/acme_renew.log 2>&1
+```
 
 ---
 
@@ -91,10 +110,7 @@ SSL-Bot/
 ├── SSL-Bot.sh          # 主脚本文件
 ├── README.md           # 项目说明文档
 ├── LICENSE             # 开源许可证（MIT）
-├── config/             # 配置文件目录（可选）
-│   ├── dns_config.sh   # DNS 提供商配置模板
-│   └── acme_config.sh  # ACME 配置模板
-└── logs/               # 日志目录
+└── logs/               # 日志目录（生成）
     └── acme_renew.log  # 续期日志文件
 ```
 
@@ -118,6 +134,9 @@ SSL-Bot/
      chmod 600 /root/*.key
      ```
 
+5. **日志管理**：
+   - 日志文件 `/root/acme_renew.log` 会不断增长，建议定期清理或配置日志轮转工具（如 `logrotate`）。
+
 ---
 
 ## **常见问题**
@@ -129,7 +148,7 @@ A: 检查以下内容：
 - 网络连接是否正常。
 
 ### **Q2: 如何手动测试续期？**
-A: 执行以下命令：
+A: 执行以下命令手动触发续期：
 ```bash
 /root/renew_cert.sh
 ```
@@ -138,6 +157,16 @@ A: 执行以下命令：
 A: 使用以下命令查看日志：
 ```bash
 tail -f /root/acme_renew.log
+```
+
+### **Q4: 如何验证定时任务是否生效？**
+A: 使用以下命令查看 Cron 定时任务：
+```bash
+crontab -l
+```
+输出应包含类似以下内容：
+```
+0 3 * * * /root/renew_cert.sh >> /root/acme_renew.log 2>&1
 ```
 
 ---
@@ -151,7 +180,5 @@ tail -f /root/acme_renew.log
 ## **贡献**
 
 欢迎提交 Issue 或 Pull Request，帮助改进本项目！如果你有任何建议或发现 Bug，请随时联系我。
-
----
 
 
