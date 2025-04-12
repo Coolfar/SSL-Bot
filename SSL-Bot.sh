@@ -143,6 +143,8 @@ acme.sh --install-cert -d "$DOMAIN" \
 
 # 步骤 9: 配置自动续期
 echo "⏳ 正在配置自动续期任务..."
+
+# 生成续期脚本
 cat > /root/renew_cert.sh <<EOF
 #!/bin/bash
 export PATH="\$HOME/.acme.sh:\$PATH"
@@ -164,6 +166,8 @@ esac
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 正在续期证书..." >> /root/acme_renew.log
 acme.sh --renew -d "$DOMAIN" --server "$CA_SERVER" --force >> /root/acme_renew.log 2>&1
 EOF
+
+# 赋予续期脚本执行权限
 chmod +x /root/renew_cert.sh
 
 # 添加 cron 任务（每天 03:00 检查续期）
@@ -176,7 +180,7 @@ echo "证书路径:"
 echo "  私钥文件: /root/${DOMAIN}.key"
 echo "  证书文件: /root/${DOMAIN}.crt"
 echo "────────────────────────────────────"
-echo "测试续期命令: ./renew_cert.sh"
+echo "测试续期命令: /root/renew_cert.sh"
 echo "查看续期日志: tail -f /root/acme_renew.log"
 echo "────────────────────────────────────"
 
