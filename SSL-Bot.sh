@@ -6,7 +6,7 @@ set -e
 # 初始化清理函数
 cleanup() {
     echo "** 检测到中断，正在清理..."
-    rm -f /root/${DOMAIN}.{key,crt} 2>/dev/null || true
+    rm -f "$CERT_PATH/${DOMAIN}.key" "$CERT_PATH/${DOMAIN}.crt" 2>/dev/null || true
     ~/.acme.sh/acme.sh --remove -d "$DOMAIN" >/dev/null 2>&1 || true
     mv /root/acme_renew.log /root/acme_failed_$(date +%Y%m%d%H%M%S).log 2>/dev/null || true
     echo "清理完成，脚本已退出。"
@@ -31,12 +31,34 @@ detect_os() {
 install_deps() {
     case $OS in
         ubuntu|debian)
-            apt update -qq
-            apt upgrade -y -qq
+            # 提示用户是否更新系统
+            read -p "» 是否更新系统包（y/n，默认 n）？" UPDATE_SYSTEM
+            UPDATE_SYSTEM=${UPDATE_SYSTEM:-n}
+
+            if [[ "$UPDATE_SYSTEM" =~ ^[Yy]$ ]]; then
+                echo "⏳ 正在更新系统..."
+                apt update -qq
+                apt upgrade -y -qq
+            else
+                echo "ℹ️ 跳过系统更新。如果系统缺少必要的依赖或版本过旧，可能会导致脚本失败。"
+            fi
+
+            echo "⏳ 正在安装系统依赖..."
             apt install -y -qq curl socat git cron >/dev/null
             ;;
         centos|rhel)
-            yum update -y -q
+            # 提示用户是否更新系统
+            read -p "» 是否更新系统包（y/n，默认 n）？" UPDATE_SYSTEM
+            UPDATE_SYSTEM=${UPDATE_SYSTEM:-n}
+
+            if [[ "$UPDATE_SYSTEM" =~ ^[Yy]$ ]]; then
+                echo "⏳ 正在更新系统..."
+                yum update -y -q
+            else
+                echo "ℹ️ 跳过系统更新。如果系统缺少必要的依赖或版本过旧，可能会导致脚本失败。"
+            fi
+
+            echo "⏳ 正在安装系统依赖..."
             yum install -y -q curl socat git cronie >/dev/null
             systemctl start crond
             systemctl enable crond >/dev/null
@@ -51,17 +73,18 @@ install_deps() {
 # 主执行流程
 echo "▌ SSL 证书自动化部署脚本（DNS 验证版）▐"
 
-# 步骤 1: 用户输入
+# 步骤 1: 用户输入域名
 read -p "» 请输入域名（如 example.com）: " DOMAIN
 while [[ ! "$DOMAIN" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; do
     echo "⚠️  无效域名，请重新输入"
     read -p "» 请输入域名（如 example.com）: " DOMAIN
 done
 
+# 步骤 2: 输入邮箱
 read -p "» 请输入邮箱（用于证书通知）: " EMAIL
 EMAIL=${EMAIL:-user@example.com}
 
-# 步骤 2: 选择 DNS 提供商
+# 步骤 3: 选择 DNS 提供商
 PS3="» 请选择 DNS 提供商（数字）: "
 select provider in "Cloudflare" "阿里云" "腾讯云(DNSPod)"; do
     case $provider in
@@ -95,7 +118,7 @@ select provider in "Cloudflare" "阿里云" "腾讯云(DNSPod)"; do
     esac
 done
 
-# 步骤 3: 选择 CA 机构
+# 步骤 4: 选择 CA 机构
 PS3="» 请选择证书颁发机构（数字）: "
 select ca in "Let's Encrypt" "Buypass" "ZeroSSL"; do
     case $ca in
@@ -107,24 +130,31 @@ select ca in "Let's Encrypt" "Buypass" "ZeroSSL"; do
     break
 done
 
-# 步骤 4: 系统检测与依赖安装
+# 步骤 5: 自定义证书安装路径
+read -p "» 请输入证书安装路径（默认 /root/）: " CERT_PATH
+CERT_PATH=${CERT_PATH:-/root/}
+
+# 确保目录存在
+mkdir -p "$CERT_PATH"
+
+# 步骤 6: 系统检测与依赖安装
 echo "⏳ 正在检测系统环境..."
 detect_os
 echo "⏳ 正在安装系统依赖..."
 install_deps
 
-# 步骤 5: 安装 acme.sh
+# 步骤 7: 安装 acme.sh
 echo "⏳ 正在部署 acme.sh 客户端..."
 curl -s https://get.acme.sh | sh >/dev/null
 source ~/.bashrc 2>/dev/null
 export PATH="$HOME/.acme.sh:$PATH"
 acme.sh --upgrade --auto-upgrade 0 >/dev/null
 
-# 步骤 6: 注册账户
+# 步骤 8: 注册账户
 echo "⏳ 正在向 $CA_SERVER 注册账户..."
 acme.sh --register-account -m "$EMAIL" --server "$CA_SERVER" >/dev/null
 
-# 步骤 7: 申请证书
+# 步骤 9: 申请证书
 echo "⏳ 正在签发 SSL 证书（DNS 验证）..."
 if ! acme.sh --issue --dns "$DNS_SERVICE" -d "$DOMAIN" --server "$CA_SERVER" --force; then
     echo "❌ 证书签发失败，请检查："
@@ -134,14 +164,14 @@ if ! acme.sh --issue --dns "$DNS_SERVICE" -d "$DOMAIN" --server "$CA_SERVER" --f
     cleanup
 fi
 
-# 步骤 8: 安装证书
+# 步骤 10: 安装证书
 echo "⏳ 正在安装证书到系统目录..."
 acme.sh --install-cert -d "$DOMAIN" \
-    --key-file       /root/"$DOMAIN".key \
-    --fullchain-file /root/"$DOMAIN".crt \
+    --key-file       "$CERT_PATH/$DOMAIN.key" \
+    --fullchain-file "$CERT_PATH/$DOMAIN.crt" \
     --reloadcmd     "echo '» 证书已更新，请重启相关服务！'"
 
-# 步骤 9: 配置自动续期
+# 步骤 11: 配置自动续期
 echo "⏳ 正在配置自动续期任务..."
 
 # 生成续期脚本
@@ -165,6 +195,12 @@ esac
 # 续期证书
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 正在续期证书..." >> /root/acme_renew.log
 acme.sh --renew -d "$DOMAIN" --server "$CA_SERVER" --force >> /root/acme_renew.log 2>&1
+
+# 重新安装证书到指定路径
+acme.sh --install-cert -d "$DOMAIN" \
+    --key-file       "$CERT_PATH/$DOMAIN.key" \
+    --fullchain-file "$CERT_PATH/$DOMAIN.crt" \
+    --reloadcmd     "echo '» 证书已更新，请重启相关服务！'" >> /root/acme_renew.log 2>&1
 EOF
 
 # 赋予续期脚本执行权限
@@ -177,8 +213,8 @@ chmod +x /root/renew_cert.sh
 echo "✅ 部署完成！"
 echo "────────────────────────────────────"
 echo "证书路径:"
-echo "  私钥文件: /root/${DOMAIN}.key"
-echo "  证书文件: /root/${DOMAIN}.crt"
+echo "  私钥文件: $CERT_PATH/$DOMAIN.key"
+echo "  证书文件: $CERT_PATH/$DOMAIN.crt"
 echo "────────────────────────────────────"
 echo "测试续期命令: /root/renew_cert.sh"
 echo "查看续期日志: tail -f /root/acme_renew.log"
