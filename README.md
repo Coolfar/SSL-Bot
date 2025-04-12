@@ -48,6 +48,12 @@ chmod +x SSL-Bot.sh
 ./SSL-Bot.sh
 ```
 
+
+### 你也通过以下命令一键安装并运行脚本：
+
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/Coolfar/SSL-Bot/main/SSL-Bot.sh)
+```
 脚本会引导你完成以下步骤：
 1. 输入域名和邮箱。
 2. 选择 DNS 提供商（Cloudflare、阿里云、腾讯云）。
