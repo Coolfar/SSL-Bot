@@ -42,17 +42,17 @@ detect_os() {
 install_deps() {
     case $OS in
         ubuntu|debian)
-            # 提示用户是否更新系统
-            read -p "» 是否更新系统包（y/n，默认 n）？" UPDATE_SYSTEM
-            UPDATE_SYSTEM=${UPDATE_SYSTEM:-n}
+           # 提示用户是否更新系统
+read -p "» 是否更新系统包（y/n，默认 n）？" UPDATE_SYSTEM
+UPDATE_SYSTEM=${UPDATE_SYSTEM:-n}
 
-            if [[ "$UPDATE_SYSTEM" =~ ^[Yy]$ ]]; then
-                echo "⏳ 正在更新系统..."
-                apt update -qq
-                apt upgrade -y -qq
-            else
-                echo "ℹ️ 跳过系统更新。如果系统缺少必要的依赖或版本过旧，可能会导致脚本失败。"
-            fi
+if [[ "$UPDATE_SYSTEM" =~ ^[Yy]$ ]]; then
+    echo "⏳ 正在更新系统..."
+    apt update -qq
+    apt upgrade -y -qq
+else
+    echo -e "\e[33mℹ️ 跳过系统更新。如果系统缺少必要的依赖或版本过旧，可能会导致脚本失败。\e[0m"
+fi
 
             echo "⏳ 正在安装系统依赖..."
             apt install -y -qq curl socat git cron >/dev/null
