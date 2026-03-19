@@ -34,7 +34,7 @@ SSL-Bot 是一个简单易用的自动化工具，用于通过 DNS 验证方式�
 
 ### **1. 克隆项目**
 ```bash
-git clone https://github.com/yourusername/SSL-Bot.git
+git clone https://github.com/Coolfar/SSL-Bot.git
 cd SSL-Bot
 ```
 
