@@ -106,8 +106,13 @@ PS3="» 请选择 DNS 提供商（数字）: "
 select provider in "Cloudflare" "阿里云" "腾讯云(DNSPod)"; do
     case $provider in
         Cloudflare)
-            read -s -p "• 请输入 Cloudflare API 密钥: " CF_KEY
+            read -s -p "• 请输入 Cloudflare API 密钥（输入时不显示，粘贴后按回车）: " CF_KEY
             echo
+            if [ -z "$CF_KEY" ]; then
+                echo "❌ Cloudflare API 密钥不能为空"
+                exit 1
+            fi
+            echo "✓ 已接收 Cloudflare API 密钥（长度: ${#CF_KEY}）"
             read -p "• 请输入 Cloudflare 注册邮箱: " CF_EMAIL
             export CF_Key="$CF_KEY"
             export CF_Email="$CF_EMAIL"
@@ -115,20 +120,40 @@ select provider in "Cloudflare" "阿里云" "腾讯云(DNSPod)"; do
             break
             ;;
         阿里云)
-            read -s -p "• 请输入阿里云 AccessKey ID: " ALI_KEY
+            read -s -p "• 请输入阿里云 AccessKey ID（输入时不显示，粘贴后按回车）: " ALI_KEY
             echo
-            read -s -p "• 请输入阿里云 AccessKey Secret: " ALI_SECRET
+            if [ -z "$ALI_KEY" ]; then
+                echo "❌ 阿里云 AccessKey ID 不能为空"
+                exit 1
+            fi
+            echo "✓ 已接收阿里云 AccessKey ID（长度: ${#ALI_KEY}）"
+            read -s -p "• 请输入阿里云 AccessKey Secret（输入时不显示，粘贴后按回车）: " ALI_SECRET
             echo
+            if [ -z "$ALI_SECRET" ]; then
+                echo "❌ 阿里云 AccessKey Secret 不能为空"
+                exit 1
+            fi
+            echo "✓ 已接收阿里云 AccessKey Secret（长度: ${#ALI_SECRET}）"
             export Ali_Key="$ALI_KEY"
             export Ali_Secret="$ALI_SECRET"
             DNS_SERVICE="dns_ali"
             break
             ;;
         "腾讯云(DNSPod)")
-            read -s -p "• 请输入DNSPod SecretId: " DP_ID
+            read -s -p "• 请输入DNSPod SecretId（输入时不显示，粘贴后按回车）: " DP_ID
             echo
-            read -s -p "• 请输入DNSPod SecretKey: " DP_KEY
+            if [ -z "$DP_ID" ]; then
+                echo "❌ DNSPod SecretId 不能为空"
+                exit 1
+            fi
+            echo "✓ 已接收 DNSPod SecretId（长度: ${#DP_ID}）"
+            read -s -p "• 请输入DNSPod SecretKey（输入时不显示，粘贴后按回车）: " DP_KEY
             echo
+            if [ -z "$DP_KEY" ]; then
+                echo "❌ DNSPod SecretKey 不能为空"
+                exit 1
+            fi
+            echo "✓ 已接收 DNSPod SecretKey（长度: ${#DP_KEY}）"
             export DP_Id="$DP_ID"
             export DP_Key="$DP_KEY"
             DNS_SERVICE="dns_dp"
