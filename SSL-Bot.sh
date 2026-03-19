@@ -145,6 +145,9 @@ done
 read -p "» 请输入证书安装路径（默认 /root/）: " CERT_PATH
 CERT_PATH=${CERT_PATH:-/root/}
 
+# 移除路径末尾的斜杠（如果有）
+CERT_PATH=${CERT_PATH%/}
+
 # 确保目录存在
 mkdir -p "$CERT_PATH"
 
