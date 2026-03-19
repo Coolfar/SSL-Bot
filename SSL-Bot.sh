@@ -46,9 +46,12 @@ install_deps() {
 read -p "» 是否更新系统包（y/n，默认 n）？" UPDATE_SYSTEM
 UPDATE_SYSTEM=${UPDATE_SYSTEM:-n}
 
+# **无论用户是否更新，都先更新包列表**
+echo "⏳ 正在更新软件包列表..."
+apt-get update -qq
+
 if [[ "$UPDATE_SYSTEM" =~ ^[Yy]$ ]]; then
     echo "⏳ 正在更新系统..."
-    apt-get update -qq
     apt-get upgrade -y -qq
 else
     echo -e "\e[33mℹ️ 跳过系统更新。如果系统缺少必要的依赖或版本过旧，可能会导致脚本失败。\e[0m"
