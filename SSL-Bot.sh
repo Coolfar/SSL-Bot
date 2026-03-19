@@ -3,11 +3,14 @@
 # 强制脚本在遇到任何错误时退出
 set -e
 
+# acme.sh 可执行文件路径
+ACME_SH="$HOME/.acme.sh/acme.sh"
+
 # 初始化清理函数
 cleanup() {
     echo "** 检测到中断，正在清理..."
     rm -f "$CERT_PATH/${DOMAIN}.key" "$CERT_PATH/${DOMAIN}.crt" 2>/dev/null || true
-    ~/.acme.sh/acme.sh --remove -d "$DOMAIN" >/dev/null 2>&1 || true
+    "$ACME_SH" --remove -d "$DOMAIN" >/dev/null 2>&1 || true
     mv /root/acme_renew.log /root/acme_failed_$(date +%Y%m%d%H%M%S).log 2>/dev/null || true
     echo "清理完成，脚本已退出。"
     exit 1
@@ -103,7 +106,8 @@ PS3="» 请选择 DNS 提供商（数字）: "
 select provider in "Cloudflare" "阿里云" "腾讯云(DNSPod)"; do
     case $provider in
         Cloudflare)
-            read -p "• 请输入 Cloudflare API 密钥: " CF_KEY
+            read -s -p "• 请输入 Cloudflare API 密钥: " CF_KEY
+            echo
             read -p "• 请输入 Cloudflare 注册邮箱: " CF_EMAIL
             export CF_Key="$CF_KEY"
             export CF_Email="$CF_EMAIL"
@@ -111,16 +115,20 @@ select provider in "Cloudflare" "阿里云" "腾讯云(DNSPod)"; do
             break
             ;;
         阿里云)
-            read -p "• 请输入阿里云 AccessKey ID: " ALI_KEY
-            read -p "• 请输入阿里云 AccessKey Secret: " ALI_SECRET
+            read -s -p "• 请输入阿里云 AccessKey ID: " ALI_KEY
+            echo
+            read -s -p "• 请输入阿里云 AccessKey Secret: " ALI_SECRET
+            echo
             export Ali_Key="$ALI_KEY"
             export Ali_Secret="$ALI_SECRET"
             DNS_SERVICE="dns_ali"
             break
             ;;
         "腾讯云(DNSPod)")
-            read -p "• 请输入DNSPod SecretId: " DP_ID
-            read -p "• 请输入DNSPod SecretKey: " DP_KEY
+            read -s -p "• 请输入DNSPod SecretId: " DP_ID
+            echo
+            read -s -p "• 请输入DNSPod SecretKey: " DP_KEY
+            echo
             export DP_Id="$DP_ID"
             export DP_Key="$DP_KEY"
             DNS_SERVICE="dns_dp"
@@ -163,17 +171,23 @@ install_deps
 # 步骤 7: 安装 acme.sh
 echo "⏳ 正在部署 acme.sh 客户端..."
 curl -s https://get.acme.sh | sh >/dev/null
-source ~/.bashrc 2>/dev/null
+if [ -f "$HOME/.bashrc" ]; then
+    source "$HOME/.bashrc" 2>/dev/null || true
+fi
 export PATH="$HOME/.acme.sh:$PATH"
-acme.sh --upgrade --auto-upgrade 0 >/dev/null
+if [ ! -x "$ACME_SH" ]; then
+    echo "❌ acme.sh 安装失败或不可执行：$ACME_SH"
+    exit 1
+fi
+"$ACME_SH" --upgrade --auto-upgrade 0 >/dev/null
 
 # 步骤 8: 注册账户
 echo "⏳ 正在向 $CA_SERVER 注册账户..."
-acme.sh --register-account -m "$EMAIL" --server "$CA_SERVER" >/dev/null
+"$ACME_SH" --register-account -m "$EMAIL" --server "$CA_SERVER" >/dev/null
 
 # 步骤 9: 申请证书
 echo "⏳ 正在签发 SSL 证书（DNS 验证）..."
-if ! acme.sh --issue --dns "$DNS_SERVICE" -d "$DOMAIN" --server "$CA_SERVER" --force; then
+if ! "$ACME_SH" --issue --dns "$DNS_SERVICE" -d "$DOMAIN" --server "$CA_SERVER" --force; then
     echo "❌ 证书签发失败，请检查："
     echo "   - 域名是否已正确解析"
     echo "   - API 密钥是否有 DNS 写入权限"
@@ -183,7 +197,7 @@ fi
 
 # 步骤 10: 安装证书
 echo "⏳ 正在安装证书到系统目录..."
-acme.sh --install-cert -d "$DOMAIN" \
+"$ACME_SH" --install-cert -d "$DOMAIN" \
     --key-file       "$CERT_PATH/$DOMAIN.key" \
     --fullchain-file "$CERT_PATH/$DOMAIN.crt" \
     --reloadcmd     "echo '» 证书已更新，请重启相关服务！'"
@@ -195,6 +209,7 @@ echo "⏳ 正在配置自动续期任务..."
 cat > /root/renew_cert.sh <<EOF
 #!/bin/bash
 export PATH="\$HOME/.acme.sh:\$PATH"
+ACME_SH="\$HOME/.acme.sh/acme.sh"
 
 # 重新加载环境变量
 case "$provider" in
@@ -211,10 +226,10 @@ esac
 
 # 续期证书
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 正在续期证书..." >> /root/acme_renew.log
-acme.sh --renew -d "$DOMAIN" --server "$CA_SERVER" --force >> /root/acme_renew.log 2>&1
+"\$ACME_SH" --renew -d "$DOMAIN" --server "$CA_SERVER" >> /root/acme_renew.log 2>&1
 
 # 重新安装证书到指定路径
-acme.sh --install-cert -d "$DOMAIN" \
+"\$ACME_SH" --install-cert -d "$DOMAIN" \
     --key-file       "$CERT_PATH/$DOMAIN.key" \
     --fullchain-file "$CERT_PATH/$DOMAIN.crt" \
     --reloadcmd     "echo '» 证书已更新，请重启相关服务！'" >> /root/acme_renew.log 2>&1
@@ -222,9 +237,10 @@ EOF
 
 # 赋予续期脚本执行权限
 chmod +x /root/renew_cert.sh
-
-# 添加 cron 任务（每天 03:00 检查续期）
-(crontab -l 2>/dev/null; echo "0 3 * * * /root/renew_cert.sh >> /root/acme_renew.log 2>&1") | crontab -
+chmod 600 /root/renew_cert.sh
+# 添加 cron 任务（每天 03:00 检查续期，先去重）
+CRON_LINE="0 3 * * * /root/renew_cert.sh >> /root/acme_renew.log 2>&1"
+(crontab -l 2>/dev/null | grep -Fv "/root/renew_cert.sh >> /root/acme_renew.log 2>&1"; echo "$CRON_LINE") | crontab -
 
 # 完成提示
 echo "✅ 部署完成！"
